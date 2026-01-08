@@ -1,34 +1,58 @@
 
+%Gains
+Q = diag([500,1,1,1,1,1,100,100,100,1,1,1]);
+R = diag([1,1,1,1]);
 
-Q = diag([1,1,1,1,1,1,1,1,1,1,1,1]);
-R = diag([100,1,1,1]);
 
-
-
+%magical LQR matrix finding function
 K=FindGainMatrix([0,0,0,0,0,0,0,0,0,0,0,0],[9.81,0,0,0],Q,R);
 
-tgt = [0,0,-10,1,0,0,0,0,0,0,0,0];
+tgt = [0,0,-10,0,0,0,0,0,0,0,0,0];
 
+% Run simulink model, comment out if you want to view a visualization
+% faster, simulink is very slow
 mdl = "TVCmodel.slx";
 results=sim(mdl);
 
+% retrieve data from simulink model
 data=results.simout(1,1:12,:);
 times=results.tout';
+
+%get rid of random useless leading singleton dimension
 data=reshape(data,[12,length(times)])';
-positions=data(:,1:3);
-rotations=data(:,7:9);
-dir = [sin(rotations(:,1)).*sin(rotations(:,2)),-cos(rotations(:,1)).*sin(rotations(:,2)),cos(rotations(:,2))];
+
+%divide data for ease of access
+pos=data(:,1:3);
+rot=data(:,7:9);
+
+%calculate rocket direction vector from euler angles
+dir = [sin(rot(:,1)).*sin(rot(:,2)),-cos(rot(:,1)).*sin(rot(:,2)),cos(rot(:,2))];
+
+% comment out if you want to reset one figure instead of making another one
+%figure;
+%
 
 
-figure;
-
-for t=1:length(times)
+for t=1:length(times) % the way this is animated is just taking each value of simulink data and rendering it with a pause
     
-    temppos = num2cell(positions(t,:));
+    temppos = num2cell(pos(t,:));
     tempdir = num2cell(dir(t,:));
-    
+    %mke a vector starting at the position and pointing in the direction of
+    %the rocket
     quiver3(temppos{:},tempdir{:},'r')
+    
+    % comment out to remove trail
+    %
+    %hold on
+    %
+    
+    % axis bounds for the graph
     axis([-5,5,-5,5,-15,5])
-    axis manual
+    
+    % 20 is the runtime set in the simulink file divide by number of frames
+    % to get the frame time
+    %pause(20/length(times))
+
+    %i prefer this bc it runs faster, even if not close to realtime
     pause(0.1)
 end
