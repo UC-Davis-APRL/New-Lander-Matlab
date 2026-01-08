@@ -1,4 +1,13 @@
-function K = FindGainMatrix(xEq,uEq)
+function K = FindGainMatrix(xEq,uEq,Q,R)
+arguments
+    xEq 
+    uEq 
+    % Q matrix for state vector prioritization
+    Q (12,12) double = diag([500,500,50,1,1,1,1,1,1,1,1,1]);
+    % R matrix for input vector prioritization
+    R (4,4) double = diag([10,50,50,4]);
+end
+%K=FindGainMatrix([0,0,0,0,0,0,0,0,0,0,0,0],[9.81,0,0,0])
 
 
 % x 
@@ -37,10 +46,7 @@ jacU = jacobian(Function,[T Alph Bet Rcs])
 A = double(subs(jacX,[xSyms,uSyms,cSyms],[xEq,uEq,const]))
 B = double(subs(jacU,[xSyms,uSyms,cSyms],[xEq,uEq,const]))
 
-% Q matrix for state vector prioritization
-Q = diag([500,500,50,1,1,1,1,1,1,1,1,1]);
-% R matrix for input vector prioritization
-R = diag([10,50,50,4]);
+
 
 % display(rank(ctrb(A,B)))
 
