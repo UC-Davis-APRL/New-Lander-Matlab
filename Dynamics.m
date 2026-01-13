@@ -1,4 +1,4 @@
-function xdot = dynamics(x, T, Alph, Bet, Rcs)
+function xdot = Dynamics(x, T, Alph, Bet, Rcs)
 
 xdot = [0 0 0 0 0 0 0 0 0 0 0 0];
 
