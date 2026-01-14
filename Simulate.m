@@ -5,11 +5,11 @@ R = diag([1,500,500,10]);
 
 
 %magical LQR matrix finding function
-K=FindGainMatrix([0,0,0,0,0,0,0,0,0,0,0,0],[9.81,0,0,0],Q,R);
-
+Ka=FindAttitudeGainMatrix([0,0,0,0,0,0],[0,0,0],9.81)
+Kp=FindPositionGainMatrix([0,0,0,0,0,0],[0,0,0,9.81])
 tgt = [0,0,0,0,0,0,0,0,0,0,0,0];
 
-initialCondition = [-3,0,0,3,0,0,0,0,0,0,0,0];
+initialCondition = [0,0,0,0,0,0,0.1,0,0,0,0,0];
 
 % Run simulink model, comment out if you want to view a visualization
 % faster, simulink is very slow
