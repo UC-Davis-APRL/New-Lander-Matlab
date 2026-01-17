@@ -14,6 +14,8 @@ Qp = diag([0.2,0.2,0.4,0.5,0.5,0.8]);
 Rp  = diag([50,50,80]);
 
 constants = [1,9.81,1,5,5,5]
+
+playSpeed = 4
 %[m g L Ixx Iyy Izz]
 
 %magical LQR matrix finding function
@@ -93,5 +95,5 @@ for t=1:frames-1
     
     %slows down to realtime? supposedly? 
     %frame times can be changed in the simulink model settings
-    pause(times(t+1)-times(t))
+    pause((times(t+1)-times(t))/playSpeed)
 end
