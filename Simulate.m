@@ -1,15 +1,28 @@
+%This is the cascade control script,
+%according to some papers and a sizeable amount of chatgpt cascade control
+%is better as it m
+%
+%
+%
 
-%Gains
-Q = diag([1,1,1,1,1,1,10,10,10,10,10,10]);
-R = diag([1,500,500,10]);
 
+%weights
+Qa = diag([80,80,5,40,40,1]);
+Ra = diag([1,1,1]);
+
+Qp = diag([0.2,0.2,0.4,0.5,0.5,0.8]);
+Rp  = diag([50,50,80]);
+
+constants = [1,9.81,1,5,5,5]
+%[m g L Ixx Iyy Izz]
 
 %magical LQR matrix finding function
-Ka=FindAttitudeGainMatrix([0,0,0,0,0,0],[0,0,0],9.81)
-Kp=FindPositionGainMatrix([0,0,0,0,0,0],[0,0,0,9.81])
-tgt = [0,0,0,0,0,0,0,0,0,0,0,0];
+Ka=FindAttitudeGainMatrix([0,0,0,0,0,0],[0,0,0],constants,9.81,Qa,Ra)
+Kp=FindPositionGainMatrix([0,0,0,0,0,0],[0,0,0],constants,Qp,Rp)
 
-initialCondition = [0,0,0,0,0,0,0.1,0,0,0,0,0];
+posTgt = [0,0,0,0,0,0];
+
+initialCondition = [3,3,0,0,0,0,0,0,0,0,0,0];
 
 % Run simulink model, comment out if you want to view a visualization
 % faster, simulink is very slow
@@ -18,10 +31,13 @@ results=sim(mdl);
 
 % retrieve data from simulink model
 state=results.state(:,:);
+
 controls=results.controls(:,:);
+%
+
 times=results.tout';
 frames = numel(times);
-%get rid of random useless leading singleton dimension
+
 
 %divide data for ease of access
 pos=state(:,1:3)';

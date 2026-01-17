@@ -1,10 +1,11 @@
-function Ka = FindAttitudeGainMatrix(xEq,uEq,TEq,Q,R)
+function Ka = FindAttitudeGainMatrix(xEq,uEq,C,TEq,Q,R)
 arguments
     xEq 
     uEq
+    C
     TEq
     % Q matrix for state vector prioritization
-    Q (6,6) double = diag([1,1,1,10,10,10]);
+    Q (6,6) double = diag([80,80,5,40,40,1]);
     % R matrix for input vector prioritization
     R (3,3) double = diag([1,1,1]);
     % Q matrix for state vector prioritizatio
@@ -13,15 +14,13 @@ end
 %Ka=FindAttitudeGainMatrix([0,0,0,0,0,0],[0,0,0],9.81)
 
 %constants
-const = [1,9.81,1,5,5,5,TEq]
+const = [C,TEq]
 syms m g L Ixx Iyy Izz T
 cSyms = [m g L Ixx Iyy Izz T]
 
 % x
 syms Phi Theta Psi p q r
 xSyms = [Phi Theta Psi p q r]
-
-
 
 % u1
 syms Alph Bet Rcs

@@ -11,7 +11,7 @@ Izz = 5;
 
 pn = x(1);
 pe = x(2);
-h = x(3);
+pd = x(3);
 u = x(4);
 v = x(5);
 w = x(6);
@@ -47,3 +47,4 @@ xdot(11) = (Izz - Ixx)*p*r/Iyy - (L*T*sin(Bet)*cos(Alph))/Iyy;
 %r
 xdot(12) = (Ixx - Iyy)*p*q/Izz + Rcs/Izz;
 end
+
