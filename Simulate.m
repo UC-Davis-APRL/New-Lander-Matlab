@@ -2,9 +2,10 @@
 %according to some papers and a sizeable amount of chatgpt cascade control
 %is better as it m
 %
+%needs symbolic math toolbox and mabye some others
 %
 %
-
+%
 
 %weights
 Qa = diag([80,80,5,40,40,1]);
@@ -14,17 +15,24 @@ Qp = diag([0.2,0.2,0.4,0.5,0.5,0.8]);
 Rp  = diag([50,50,80]);
 
 constants = [1,9.81,1,5,5,5]
-
-playSpeed = 4
 %[m g L Ixx Iyy Izz]
+
+%speed animation runs at ig
+playSpeed = 4
 
 %magical LQR matrix finding function
 Ka=FindAttitudeGainMatrix([0,0,0,0,0,0],[0,0,0],constants,9.81,Qa,Ra)
 Kp=FindPositionGainMatrix([0,0,0,0,0,0],[0,0,0],constants,Qp,Rp)
 
-posTgt = [0,0,0,0,0,0];
 
-initialCondition = [3,3,0,0,0,0,0,0,0,0,0,0];
+
+initialCondition = [0,0,0,0,0,0,0,0,0,0,0,0];
+
+
+t=1:0.01:20
+a = zeros(6,numel(t))
+a(3,:) = linspace(0,-5,numel(t))
+posTgt = timeseries(a,t)
 
 % Run simulink model, comment out if you want to view a visualization
 % faster, simulink is very slow
@@ -32,18 +40,17 @@ mdl = "TVCmodel.slx";
 results=sim(mdl);
 
 % retrieve data from simulink model
-state=results.state(:,:);
-
-controls=results.controls(:,:);
+state=results.state;
+controls=results.controls;
 %
 
 times=results.tout';
 frames = numel(times);
 
-
+%state is a 
 %divide data for ease of access
-pos=state(:,1:3)';
-rot=state(:,7:9)';
+pos=squeeze(state(:,1:3,:));
+rot=squeeze(state(:,7:9,:));
 
 rocketPos = zeros(3,1,frames);
 rocketPos(1:3,1,:) = pos;
@@ -51,6 +58,7 @@ rocketPos(1:3,1,:) = pos;
 %calculate rocket direction vector from euler angles
 rocketDir = zeros(3,1,frames);
 rocketDir(3,1,:) = -1;
+
 rocketDir = RotateEulerAnglesYPR(rocketDir,rot(1,:),rot(2,:),rot(3,:))
 
 
