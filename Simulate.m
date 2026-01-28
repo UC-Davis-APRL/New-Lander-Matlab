@@ -35,6 +35,7 @@ results=sim(mdl);
 state=results.state(:,:);
 
 controls=results.controls(:,:);
+
 %
 
 times=results.tout';
@@ -42,16 +43,14 @@ frames = numel(times);
 
 
 %divide data for ease of access
-pos=state(:,1:3)';
-rot=state(:,7:9)';
+rocketPos=state(:,1:3);
+rocketRot=state(:,7:9);
 
-rocketPos = zeros(3,1,frames);
-rocketPos(1:3,1,:) = pos;
 
 %calculate rocket direction vector from euler angles
-rocketDir = zeros(3,1,frames);
-rocketDir(3,1,:) = -1;
-rocketDir = RotateEulerAnglesYPR(rocketDir,rot(1,:),rot(2,:),rot(3,:))
+rocketDir = zeros(frames,3);
+rocketDir(:,3) = -1;
+rocketDir = RotateEulerAnglesYPR(rocketDir,rocketRot(:,1),rocketRot(:,2),rocketRot(:,3))
 
 
 thrusts = zeros(1,1,frames);
@@ -62,7 +61,7 @@ betaAngles = controls(:,3);
 
 % rotate the vector pointing opposite the rocket around roll axis, pitch
 % axis, yaw axis, mabye its supposed to be the opposite, its x z y
-thrustDir = (thrusts/20) .* RotateEulerAnglesYPR(-rocketDir,alphaAngles,betaAngles,rot(3));
+thrustDir = (thrusts/20) .* RotateEulerAnglesYPR(-rocketDir,alphaAngles,betaAngles,rocketRot(3));
 
 
 %figure definitions
@@ -85,10 +84,10 @@ for t=1:frames-1
 
     %set figure data to respective values at timestep, might be faster to
     %remake without cell arrays
-    rocket.XData = rocketPos(1,1,t); rocket.YData = rocketPos(2,1,t); rocket.ZData = rocketPos(3,1,t);
-    rocket.UData = rocketDir(1,1,t); rocket.VData = rocketDir(2,1,t); rocket.WData = rocketDir(3,1,t);
-    engine.XData = rocketPos(1,1,t); engine.YData = rocketPos(2,1,t); engine.ZData = rocketPos(3,1,t);
-    engine.UData = thrustDir(1,1,t); engine.VData = thrustDir(2,1,t); engine.WData = thrustDir(3,1,t);
+    rocket.XData = rocketPos(t,1); rocket.YData = rocketPos(t,2); rocket.ZData = rocketPos(t,3);
+    rocket.UData = rocketDir(t,1); rocket.VData = rocketDir(t,2); rocket.WData = rocketDir(t,3);
+    engine.XData = rocketPos(t,1); engine.YData = rocketPos(t,2); engine.ZData = rocketPos(t,3);
+    engine.UData = thrustDir(t,1); engine.VData = thrustDir(t,2); engine.WData = thrustDir(t,3);
     
     
     drawnow

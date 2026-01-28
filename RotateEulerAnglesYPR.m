@@ -1,39 +1,50 @@
-function object = RotateEulerAnglesYPR(object,y,p,r)
-%ROTATEEULERANGLESYPR rotates a vector
-%   Detailed explanation goes here
-arguments (Input)
+function object = RotateEulerAnglesYPR(object, y, p, r)
+% y about X, p about Y, r about Z
+% object: N x 3 row vectors
+
+arguments
     object double
     y double
     p double
     r double
 end
 
-Rx = zeros(3,3,numel(y));
-c = cos(y);
-s = sin(y);
-Rx(1,1,:)=1;
-Rx(2,2,:) = c;
-Rx(2,3,:) = -s;
-Rx(3,2,:) = s;
-Rx(3,3,:) = c;
+N = size(object,1);
 
-Ry = zeros(3,3,numel(p));
-c = cos(p);
-s = sin(p);
-Ry(2,2,:)=1;
-Ry(1,1,:) = c;
-Ry(3,1,:) = -s;
-Ry(1,3,:) = s;
-Ry(3,3,:) = c;
+% allow scalars or N-vectors
+if isscalar(y), y = repmat(y,N,1); end
+if isscalar(p), p = repmat(p,N,1); end
+if isscalar(r), r = repmat(r,N,1); end
 
-Rz = zeros(3,3,numel(r));
-c = cos(r);
-s = sin(r);
-Rz(3,3,:)=1;
-Rz(1,1,:) = c;
-Rz(2,1,:) = s;
-Rz(1,2,:) = -s;
-Rz(2,2,:) = c;
+% --- Rx(y) ---
+cy = cos(y); sy = sin(y);
+Rx = zeros(3,3,N);
+Rx(1,1,:) = 1;
+Rx(2,2,:) = cy;   Rx(2,3,:) = -sy;
+Rx(3,2,:) = sy;   Rx(3,3,:) = cy;
 
-object = pagemtimes(Ry,pagemtimes(Rz,pagemtimes(Rx,object)));
+% --- Ry(p) ---
+cp = cos(p); sp = sin(p);
+Ry = zeros(3,3,N);
+Ry(2,2,:) = 1;
+Ry(1,1,:) = cp;   Ry(1,3,:) = sp;
+Ry(3,1,:) = -sp;  Ry(3,3,:) = cp;
+
+% --- Rz(r) ---
+cr = cos(r); sr = sin(r);
+Rz = zeros(3,3,N);
+Rz(3,3,:) = 1;
+Rz(1,1,:) = cr;   Rz(1,2,:) = -sr;
+Rz(2,1,:) = sr;   Rz(2,2,:) = cr;
+
+% vectors as 3x1xN
+v = permute(object, [2 3 1]);   % 3 x 1 x N
+
+% apply in order: X then Y then Z
+v = pagemtimes(Rx, v);
+v = pagemtimes(Ry, v);
+v = pagemtimes(Rz, v);
+
+% back to N x 3
+object = squeeze(permute(v, [3 1 2]));
 end
