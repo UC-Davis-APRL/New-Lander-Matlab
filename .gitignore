@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 *.mlx
 *.asv
 *.autosave
 *.slxc
+=======
+*asv
+*slxc
+>>>>>>> 37184de273f1d5bd2eded32ed33d7393cee8add2
