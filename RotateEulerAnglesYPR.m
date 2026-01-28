@@ -9,6 +9,7 @@ arguments
     r double
 end
 
+
 N = size(object,1);
 
 % allow scalars or N-vectors
