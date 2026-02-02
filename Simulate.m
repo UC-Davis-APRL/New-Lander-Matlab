@@ -1,6 +1,11 @@
 %This is the cascade control script,
 %according to some papers and a sizeable amount of chatgpt cascade control
 %is better as it m
+clear; clc; close all;
+
+% Rocket parameters and gravity
+constants = [227,9.81,1,184,184,28];
+% [m g L Ixx Iyy Izz]
 
 %weights
 
@@ -10,33 +15,35 @@ Qa = diag([80,80,5,40,40,1]);
 Ra = diag([1,1,1]);
 
 %increase to penalize error
-Qp = diag([2,2,2,0.5,0.5,0.8]);
+Qp = diag([5,5,5,0.5,0.5,0.8]);
 %increase to prioritize using that input
 Rp  = diag([80,80,80]);
 
-
-
-% Rocket parameters and gravity
-constants = [227,9.81,1,184,184,28];
-% [m g L Ixx Iyy Izz]
-
-%alias for common ones
+%alias for common constants
 m=constants(1); g=constants(2);
+
+
 
 %literally just makes the frames play this much faster than "realtime"
 %which isnt realtime anyways because its laggy
-playSpeed = 4;
-
+playSpeed = 5;
 
 %magical LQR matrix finding function
-Ka=FindAttitudeGainMatrix([0,0,0,0,0,0],[0,0,0],constants,9.81,Qa,Ra);
 Kp=FindPositionGainMatrix([0,0,0,0,0,0],[0,0,0],constants,Qp,Rp);
 
+load("ilqr_solution.mat","U","XA","t","dt","pRef_ned","vRef_ned","aRef_ned","vRef_body","aRef_body");
+
+KaMatrix = -FindTimeVariantAttitudeGainMatrix(XA,U,constants,Qa,Ra)
+
+Ka = matrixtimesToSimulinkStruct(KaMatrix,t(1:end-1));
 
 % --- sim parameters ---
-posTgt = [1,0,-50,0,0,0];
+ref.pos = vectortimesToSimulinkStruct(pRef_ned, t);
+ref.vel = vectortimesToSimulinkStruct(vRef_ned, t);
+ref.acl = vectortimesToSimulinkStruct(aRef_ned, t);
 
-initialCondition = [0,0,0,0,0,0,0,0,0,0,0,0];
+uff = vectortimesToSimulinkStruct(U,t(2:end));
+initialCondition = XA(:,1);
 % ----------------------
 
 
@@ -53,6 +60,9 @@ state=results.state(:,:);
 
 %(Nx4) array
 controls=results.controls(:,:);
+
+%(Nx6) array
+posError=-results.error(:,:);
 
 % frame timesteps and number of frames from simulink model
 times=results.tout';
@@ -79,7 +89,7 @@ rocketDir = RotateEulerAnglesYPR(rocketDir,rocketRot(:,1),rocketRot(:,2),rocketR
 % ----------------------------------------------------------
 
 %define vector pointing towards target from rocket
-errorDir = posTgt(1:3)-rocketPos(:,1:3);
+errorDir = posError(:,1:3);
 
 
 
@@ -88,51 +98,156 @@ errorDir = posTgt(1:3)-rocketPos(:,1:3);
 % then scale to make it look reasonable
 thrustDir = (thrusts/(m*g)) .* RotateEulerAnglesYPR(-rocketDir,alphaAngles,betaAngles,rocketRot(3));
 
-%figure definitions
-hold off
-rocketVec = quiver3(NaN,NaN,NaN,NaN,NaN,NaN,'r');
-hold on
-engineVec = quiver3(NaN,NaN,NaN,NaN,NaN,NaN,'g');
-errorVec = quiver3(NaN,NaN,NaN,NaN,NaN,NaN,'b');
-% axis bounds for the graph
+
+render = false
+if render
+%% --- Fixed-size figure + axes (do this once) ---
+fig = figure(1);
+clf(fig);
+
+set(fig, 'Units', 'pixels', ...
+         'Position', [100 100 960 540], ...   % <-- pick your video resolution
+         'Resize', 'off');                    % <-- prevents frame size changes
+
+ax = axes('Parent', fig);
+set(ax, 'Units', 'normalized', ...
+        'Position', [0.08 0.08 0.88 0.88]);   % fixed axes box inside figure
+
+grid(ax, 'on');
+hold(ax, 'off');
 
 
-% flip z axis because of our fuckass choice of reference frame
-set(gca, 'ZDir', 'reverse');
+
+% Optional but recommended: lock axis behavior to avoid auto changes
+axis(ax, 'manual');        % prevents auto-scaling/layout surprises
+% axis(ax, 'vis3d');       % helps keep 3D camera stable (optional)
+
+%% --- Quivers ---
+rocketVec = quiver3(ax, NaN,NaN,NaN, NaN,NaN,NaN, 'r');
+hold(ax, 'on');
+engineVec = quiver3(ax, NaN,NaN,NaN, NaN,NaN,NaN, 'g');
+errorVec  = quiver3(ax, NaN,NaN,NaN, NaN,NaN,NaN, 'b');
+
+%% --- Video writer ---
+writerObj = VideoWriter('test2','MPEG-4');
+writerObj.FrameRate = 20; % optional; set if you want a specific fps
+open(writerObj);
+
+%% --- Loop ---
+viewBox = [-5 5 -5 5 -5 5];   % constant camera box
+
+for k = 1:frames-1
+
+    % Update vectors
+    rocketVec.XData = rocketPos(k,1); rocketVec.YData = rocketPos(k,2); rocketVec.ZData = rocketPos(k,3);
+    rocketVec.UData = rocketDir(k,1); rocketVec.VData = rocketDir(k,2); rocketVec.WData = rocketDir(k,3);
+
+    engineVec.XData = rocketPos(k,1); engineVec.YData = rocketPos(k,2); engineVec.ZData = rocketPos(k,3);
+    engineVec.UData = thrustDir(k,1); engineVec.VData = thrustDir(k,2); engineVec.WData = thrustDir(k,3);
+
+    errorVec.XData  = rocketPos(k,1); errorVec.YData  = rocketPos(k,2); errorVec.ZData  = rocketPos(k,3);
+    errorVec.UData  = errorDir(k,1);  errorVec.VData  = errorDir(k,2);  errorVec.WData  = errorDir(k,3);
+
+    % Move camera (axis limits) WITHOUT changing figure/axes size
+    axis(ax, [ ...
+        rocketPos(k,1)+viewBox(1), rocketPos(k,1)+viewBox(2), ...
+        rocketPos(k,2)+viewBox(3), rocketPos(k,2)+viewBox(4), ...
+        rocketPos(k,3)+viewBox(5), rocketPos(k,3)+viewBox(6)]);
+    
+    % Flip z axis because of reference frame
+    set(ax, 'ZDir', 'reverse');
+    drawnow limitrate;
+
+    % Capture frame with fixed size
+    F = getframe(fig);
+    writeVideo(writerObj, F);
+
+    % Real-time pacing (optional)
+    %pause((times(k+1)-times(k))/playSpeed);
+end
+
+close(writerObj);
+end
+
+
+figure; plot(t, -XA(3,:), 'b--', 'LineWidth',2); hold on; grid on;
+plot(times, -rocketPos(:,3), 'LineWidth',2);
+xlabel('t'); ylabel('Altitude [m]'); title('Altitude: reference vs achieved');
+legend('planned','simulated');
+
+figure; plot(t, XA(1,:), 'b--', 'LineWidth',2); hold on; grid on;
+plot(times, rocketPos(:,1), 'LineWidth',2);
+xlabel('t'); ylabel('Pn [m]'); title('North Pos: reference vs achieved');
+legend('planned','simulated');
+
+figure; plot(t, XA(2,:), 'b--', 'LineWidth',2); hold on; grid on;
+plot(times, rocketPos(:,2), 'LineWidth',2);
+xlabel('t'); ylabel('Pe [m]'); title('East Pos: reference vs achieved');
+legend('planned','simulated');
 
 
 
-for t=1:frames-1 
-    
-    % the way this is animated is just taking each value of simulink data and rendering it with a pause
-    %set figure data to respective values at timestep, might be faster to
-    
-    %assign xyz and uvw (tail position and vector) to coresponding values
-    
-   
-    rocketVec.XData = rocketPos(t,1); rocketVec.YData = rocketPos(t,2); rocketVec.ZData = rocketPos(t,3);
-    rocketVec.UData = rocketDir(t,1); rocketVec.VData = rocketDir(t,2); rocketVec.WData = rocketDir(t,3);
-    
-    engineVec.XData = rocketPos(t,1); engineVec.YData = rocketPos(t,2); engineVec.ZData = rocketPos(t,3);
-    engineVec.UData = thrustDir(t,1); engineVec.VData = thrustDir(t,2); engineVec.WData = thrustDir(t,3);
-    
-    errorVec.XData = rocketPos(t,1); errorVec.YData = rocketPos(t,2); errorVec.ZData = rocketPos(t,3);
-    errorVec.UData = errorDir(t,1); errorVec.VData = errorDir(t,2); errorVec.WData = errorDir(t,3);
+function sig = matrixtimesToSimulinkStruct(M, t)
+% Converts an A x B x T matrix into a Simulink time struct
+%
+% Inputs:
+%   M : A x B x T numeric matrix
+%   t : T x 1 or 1 x T time vector
+%
+% Output:
+%   sig : struct usable by Simulink "From Workspace" block
 
-    % make axis follow rocket
-    viewBox = [-5,5,-5,5,-5,5];
-    axis([rocketPos(t,1)+viewBox(1),... %-x
-          rocketPos(t,1)+viewBox(2),... % x
-          rocketPos(t,2)+viewBox(3),... %-y
-          rocketPos(t,2)+viewBox(4),... % y
-          rocketPos(t,3)+viewBox(5),... %-z
-          rocketPos(t,3)+viewBox(6)]);  % z
-    
-    
-    %RENDER!!!!!!! YIPPPEEEEE
-    drawnow;
-    
-    %slows down to realtime? supposedly? 
-    %frame times can be changed in the simrulink model settings
-    pause((times(t+1)-times(t))/playSpeed);
+arguments
+    M (:,:,:) double
+    t (:,1) double
+end
+
+[A,B,T] = size(M);
+
+assert(numel(t) == T, 'Length of time vector must match 3rd dimension of M');
+
+sig = struct();
+sig.time = t(:);                    % T x 1
+sig.signals.values = M;             % A x B x T
+sig.signals.dimensions = [A B];     % required by Simulink
+end
+
+function ts = vectortimesToSimulinkStruct(data, t)
+%AXTTOSIMULINKTIMESTRUCT Convert A×T array to Simulink time struct
+%
+%   ts = axtToSimulinkTimeStruct(data, t)
+%
+%   INPUTS:
+%     data : A×T array (A signals, T time samples)
+%     t    : T×1 or 1×T time vector
+%
+%   OUTPUT:
+%     ts.time            -> T×1 time vector
+%     ts.signals.values  -> T×A data matrix
+%     ts.signals.dimensions -> A
+
+    % Validate dimensions
+    if size(data, 2) ~= numel(t)
+        error('Number of columns in data must match length of time vector.');
+    end
+
+    % Ensure time is a column vector
+    ts.time = t(:);
+
+    % Transpose data to T×A for Simulink
+    ts.signals.values = data.';
+
+    % Number of signals
+    ts.signals.dimensions = size(data, 1);
+end
+
+function ref = buildReferenceStruct(pRef_ned, vRef_ned, aRef_ned, t)
+%BUILDREFERENCESTRUCT Create unified Simulink reference struct
+%
+% ref.pos, ref.vel, ref.acl are all Simulink-compatible
+
+    ref.pos = vectortimesToSimulinkStruct(pRef_ned, t);
+    ref.vel = vectortimesToSimulinkStruct(vRef_ned, t);
+    ref.acl = vectortimesToSimulinkStruct(aRef_ned, t);
+
 end
