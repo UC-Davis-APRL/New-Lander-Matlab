@@ -454,11 +454,11 @@ nx = 12; nu = 4;
 x = xa(1:nx);
 u_prev = xa(nx+1:nx+nu);
 u = u_prev + du;
-
-k1 = dynamics(x, u(1), u(2), u(3), u(4), constants);
-k2 = dynamics(x + 0.5*dt*k1, u(1), u(2), u(3), u(4), constants);
-k3 = dynamics(x + 0.5*dt*k2, u(1), u(2), u(3), u(4), constants);
-k4 = dynamics(x + dt*k3,     u(1), u(2), u(3), u(4), constants);
+Fw = zeros(3,1);
+k1 = dynamics(x, u(1), u(2), u(3), u(4), constants,Fw);
+k2 = dynamics(x + 0.5*dt*k1, u(1), u(2), u(3), u(4), constants,Fw);
+k3 = dynamics(x + 0.5*dt*k2, u(1), u(2), u(3), u(4), constants,Fw);
+k4 = dynamics(x + dt*k3,     u(1), u(2), u(3), u(4), constants,Fw);
 
 x_next = x + (dt/6)*(k1 + 2*k2 + 2*k3 + k4);
 xa_next = [x_next; u];   % u_prev_next = u

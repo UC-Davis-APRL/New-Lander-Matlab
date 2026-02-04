@@ -24,8 +24,9 @@ m=constants(1); g=constants(2);
 
 
 
-%literally just makes the frames play this much faster than "realtime"
-%which isnt realtime anyways because its laggy
+%purely graphical options, render shows video and playspeed affects how
+%sped up it is, to an extent. turn render off for fast graph results.
+render = true
 playSpeed = 5;
 
 %magical LQR matrix finding function
@@ -99,7 +100,7 @@ errorDir = posError(:,1:3);
 thrustDir = (thrusts/(m*g)) .* RotateEulerAnglesYPR(-rocketDir,alphaAngles,betaAngles,rocketRot(3));
 
 
-render = true
+
 if render
 %% --- Fixed-size figure + axes (do this once) ---
 fig = figure(1);

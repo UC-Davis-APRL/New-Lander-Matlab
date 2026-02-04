@@ -1,5 +1,15 @@
 function xdot = dynamics(x, T, Alph, Bet, Rcs, constants,Fw)
 % State: [pn pe pd vn ve vd Phi Theta Psi p q r]'
+arguments
+    x (12,1) double %state
+    T double %thrust input
+    Alph double %
+    Bet double  %   gimbal angles and rcs force
+    Rcs double  %
+    constants (6,1) double %constants
+    Fw (3,1) double %force of wind, used for disturbance simulation
+end
+
 
 xdot = zeros(12,1);
 
@@ -8,9 +18,9 @@ c = num2cell(constants);
 [m,g,L,Ixx,Iyy,Izz] = deal(c{:});
 
 % unpack state
-pn    = x(1); %#ok<NASGU>
-pe    = x(2); %#ok<NASGU>
-pd    = x(3); %#ok<NASGU>
+pn    = x(1);
+pe    = x(2); 
+pd    = x(3); 
 vn    = x(4);
 ve    = x(5);
 vd    = x(6);
@@ -52,12 +62,12 @@ xdot(4) = a_ned(1)+Fw(1)/m;
 xdot(5) = a_ned(2)+Fw(2)/m;
 xdot(6) = a_ned(3)+Fw(3)/m;
 
-%% 4) Euler angle kinematics (same as yours)
+%% 4) Euler angle kinematics
 xdot(7) = p + sin(Phi)*tan(Theta)*q + cos(Phi)*tan(Theta)*r;
 xdot(8) = cos(Phi)*q - sin(Phi)*r;
 xdot(9) = (sin(Phi)/cos(Theta))*q + (cos(Phi)/cos(Theta))*r;
 
-%% 5) Rotational dynamics (same as yours)
+%% 5) Rotational dynamics
 xdot(10) = (Iyy - Izz)*q*r/Ixx + (L*T*sin(Alph)*cos(Bet))/Ixx;
 xdot(11) = (Izz - Ixx)*p*r/Iyy - (L*T*sin(Bet)*cos(Alph))/Iyy;
 xdot(12) = (Ixx - Iyy)*p*q/Izz + Rcs/Izz;
