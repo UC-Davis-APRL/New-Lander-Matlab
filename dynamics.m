@@ -1,4 +1,4 @@
-function xdot = dynamics(x, T, Alph, Bet, Rcs, constants)
+function xdot = dynamics(x, T, Alph, Bet, Rcs, constants,Fw)
 % State: [pn pe pd vn ve vd Phi Theta Psi p q r]'
 
 xdot = zeros(12,1);
@@ -48,9 +48,9 @@ F_b  = [Tx_b; Ty_b; Tz_b];
 % Convert to NED and add gravity (down positive)
 a_ned = (Rnb * F_b)/m + [0;0;g];
 
-xdot(4) = a_ned(1);
-xdot(5) = a_ned(2);
-xdot(6) = a_ned(3);
+xdot(4) = a_ned(1)+Fw(1)/m;
+xdot(5) = a_ned(2)+Fw(2)/m;
+xdot(6) = a_ned(3)+Fw(3)/m;
 
 %% 4) Euler angle kinematics (same as yours)
 xdot(7) = p + sin(Phi)*tan(Theta)*q + cos(Phi)*tan(Theta)*r;

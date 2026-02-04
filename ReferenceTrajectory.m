@@ -29,10 +29,8 @@ segments = {};
 % helper: convert altitude to pd
 pd_from_alt = @(alt) -alt;
 
-segments{end+1} = seg_move(0.0,  15.0,  [0;0;pd_from_alt(0)],   [5;0;pd_from_alt(0)]);
-segments{end+1} = seg_hold(15.0,20.0, [5;0;pd_from_alt(0)])
-segments{end+1} = seg_move(20.0,25.0,  [5;0;pd_from_alt(0)], [0;0;pd_from_alt(0)]);
-
+segments{end+1} = seg_move(0.0,  10.0,  [0;0;pd_from_alt(0)],   [0;0;pd_from_alt(50)]);
+segments{end+1} = seg_move(10.0,20.0,  [0;0;pd_from_alt(50)], [0;0;pd_from_alt(0)]);
 
 
 
@@ -121,7 +119,7 @@ title('Reference vertical rate');
 
 disp("Reference generated: variables t, xRef, Qk in workspace.");
 
-save('refTraj.mat','t','xRef','Qk','dt');
+save('refTraj.mat','t','xRef','Qk','dt','aRef');
 
 %% =======================================================================
 %% Local functions

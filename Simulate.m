@@ -99,7 +99,7 @@ errorDir = posError(:,1:3);
 thrustDir = (thrusts/(m*g)) .* RotateEulerAnglesYPR(-rocketDir,alphaAngles,betaAngles,rocketRot(3));
 
 
-render = false
+render = true
 if render
 %% --- Fixed-size figure + axes (do this once) ---
 fig = figure(1);
