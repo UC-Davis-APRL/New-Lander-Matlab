@@ -121,9 +121,9 @@ if isfield(S,'Qk')
     assert(all(size(Qk) == [12 12 N]), 'Qk must be 12x12xN.');
 else
     Qbase = diag([ ...
-        5, 5, 30, ...   % pn pe pd
+        100, 100, 30, ...   % pn pe pd
         1, 1, 5,  ...   % u v w
-        50,50,5, ...    % Phi Theta Psi
+        1,1,1, ...    % Phi Theta Psi
         1, 1, 1  ...    % p q r
     ]);
     Qk = repmat(Qbase,1,1,N);
@@ -251,7 +251,67 @@ for k = 1:N-1
     [du, u] = clampDeltaU(u_prev, du, uMin, uMax);
     U(:,k) = u;
 end
-XA=XA(1:12,:)
+XA=XA(1:12,:);
+
+%% ---------------------- Recompute references from optimized XA ----------------------
+% Use the optimized trajectory for position/velocity/acceleration references
+pRef_ned = XA(1:3,:);      % 3xN from optimized XA
+tcol = t(:);               % Nx1 for gradient
+
+% --- NED refs from optimized position ---
+vRef_ned = zeros(3,N);
+aRef_ned = zeros(3,N);
+for i = 1:3
+    pi = pRef_ned(i,:).';          % Nx1
+    vi = gradient(pi, tcol);       % dp/dt
+    ai = gradient(vi, tcol);       % d2p/dt2
+    vRef_ned(i,:) = vi.';          % 1xN
+    aRef_ned(i,:) = ai.';          % 1xN
+end
+
+% Smoothing to reduce differentiation noise
+if doSmooth
+    wwin = max(5, 2*floor(0.15/dt)+1); % ~150 ms window, odd
+    for i = 1:3
+        vRef_ned(i,:) = smoothdata(vRef_ned(i,:), 'movmean', wwin);
+        aRef_ned(i,:) = smoothdata(aRef_ned(i,:), 'movmean', wwin);
+    end
+end
+
+% --- BODY refs using optimized attitude ---
+vRef_body = zeros(3,N);
+aRef_body = zeros(3,N);
+
+PhiRef   = XA(7,:);
+ThetaRef = XA(8,:);
+PsiRef   = XA(9,:);
+
+pRef = XA(10,:);  % body rates from optimized
+qRef = XA(11,:);
+rRef = XA(12,:);
+
+for k = 1:N
+    % Rotation from BODY->NED
+    cphi = cos(PhiRef(k));   sphi = sin(PhiRef(k));
+    cth  = cos(ThetaRef(k)); sth  = sin(ThetaRef(k));
+    cps  = cos(PsiRef(k));   sps  = sin(PsiRef(k));
+
+    R_b2n = [ cth*cps,  sphi*sth*cps - cphi*sps,  cphi*sth*cps + sphi*sps;
+              cth*sps,  sphi*sth*sps + cphi*cps,  cphi*sth*sps - sphi*cps;
+             -sth,      sphi*cth,               cphi*cth ];
+
+    R_n2b = R_b2n.'; % rotation matrices are orthonormal
+
+    % body velocity reference from optimized
+    v_b = R_n2b * vRef_ned(:,k);
+    vRef_body(:,k) = v_b;
+
+    % body "acceleration" consistent with vdot_body dynamics
+    omega_b = [pRef(k); qRef(k); rRef(k)];
+    a_b = R_n2b * aRef_ned(:,k) - cross(omega_b, v_b);
+    aRef_body(:,k) = a_b;
+end
+
 save('ilqr_solution.mat', 'XA', 'U', 't', 'dt', ...
     'pRef_ned', 'vRef_ned', 'aRef_ned', ...
     'vRef_body', 'aRef_body');
@@ -454,11 +514,10 @@ nx = 12; nu = 4;
 x = xa(1:nx);
 u_prev = xa(nx+1:nx+nu);
 u = u_prev + du;
-Fw = zeros(3,1);
-k1 = dynamics(x, u(1), u(2), u(3), u(4), constants,Fw);
-k2 = dynamics(x + 0.5*dt*k1, u(1), u(2), u(3), u(4), constants,Fw);
-k3 = dynamics(x + 0.5*dt*k2, u(1), u(2), u(3), u(4), constants,Fw);
-k4 = dynamics(x + dt*k3,     u(1), u(2), u(3), u(4), constants,Fw);
+k1 = dynamics(x, u);
+k2 = dynamics(x + 0.5*dt*k1, u);
+k3 = dynamics(x + 0.5*dt*k2, u);
+k4 = dynamics(x + dt*k3,     u);
 
 x_next = x + (dt/6)*(k1 + 2*k2 + 2*k3 + k4);
 xa_next = [x_next; u];   % u_prev_next = u

@@ -1,16 +1,12 @@
-function xdot = dynamics(x, T, Alph, Bet, Rcs, constants,Fw)
+function xdot = dynamics(x, u)
 % State: [pn pe pd vn ve vd Phi Theta Psi p q r]'
 arguments
     x (12,1) double %state
-    T double %thrust input
-    Alph double %
-    Bet double  %   gimbal angles and rcs force
-    Rcs double  %
-    constants (6,1) double %constants
-    Fw (3,1) double %force of wind, used for disturbance simulation
+    u (4,1) double %T Alph bet rcs
+    
 end
-
-
+constants = [227,9.81,1,184,184,28];
+T=u(1); Alph = u(2); Bet = u(3); Rcs = u(4);
 xdot = zeros(12,1);
 
 % constants
@@ -58,10 +54,9 @@ F_b  = [Tx_b; Ty_b; Tz_b];
 % Convert to NED and add gravity (down positive)
 a_ned = (Rnb * F_b)/m + [0;0;g];
 
-xdot(4) = a_ned(1)+Fw(1)/m;
-xdot(5) = a_ned(2)+Fw(2)/m;
-xdot(6) = a_ned(3)+Fw(3)/m;
-
+xdot(4) = a_ned(1);
+xdot(5) = a_ned(2);
+xdot(6) = a_ned(3);
 %% 4) Euler angle kinematics
 xdot(7) = p + sin(Phi)*tan(Theta)*q + cos(Phi)*tan(Theta)*r;
 xdot(8) = cos(Phi)*q - sin(Phi)*r;

@@ -22,11 +22,9 @@ Rp  = diag([80,80,80]);
 %alias for common constants
 m=constants(1); g=constants(2);
 
-
-
 %purely graphical options, render shows video and playspeed affects how
 %sped up it is, to an extent. turn render off for fast graph results.
-render = true
+render = false
 playSpeed = 5;
 
 %magical LQR matrix finding function
@@ -34,17 +32,45 @@ Kp=FindPositionGainMatrix([0,0,0,0,0,0],[0,0,0],constants,Qp,Rp);
 
 load("ilqr_solution.mat","U","XA","t","dt","pRef_ned","vRef_ned","aRef_ned","vRef_body","aRef_body");
 
-KaMatrix = -FindTimeVariantAttitudeGainMatrix(XA,U,constants,Qa,Ra)
+KaMatrix = -FindTimeVariantAttitudeGainMatrix(XA,U,constants,Qa,Ra);
 
 Ka = matrixtimesToSimulinkStruct(KaMatrix,t(1:end-1));
 
 % --- sim parameters ---
-ref.pos = vectortimesToSimulinkStruct(pRef_ned, t);
-ref.vel = vectortimesToSimulinkStruct(vRef_ned, t);
+ref.pos = vectortimesToSimulinkStruct(XA(1:3,:), t);
+ref.vel = vectortimesToSimulinkStruct(XA(4:6,:), t);
 ref.acl = vectortimesToSimulinkStruct(aRef_ned, t);
+ref.rot = vectortimesToSimulinkStruct(XA(7:9,:), t);
+ref.rat = vectortimesToSimulinkStruct(XA(10:12,:), t);
 
-uff = vectortimesToSimulinkStruct(U,t(2:end));
-initialCondition = XA(:,1);
+
+uff = vectortimesToSimulinkStruct(U,t(1:end-1));
+%initialCondition = XA(:,1);
+initialCondition = [0,0,0,0,0,0,0,0,0,0,0,0]';
+
+% ------------------------------
+N = numel(t);
+AA = zeros(12,12,N);
+BB = zeros(12,4,N);
+
+[A_fun, B_fun, ~] = makeDynamicsLinearizer();
+
+for i = 1:N-1
+    % Make sure you're pulling columns (12x1 and 4x1)
+    xk = XA(:,i);
+    uk = U(:,i);
+
+    % Force column vectors + sanity checks
+    xk = xk(:);  uk = uk(:);  constants = constants(:);
+    assert(numel(xk)==12, "xk must be 12x1");
+    assert(numel(uk)==4,  "uk must be 4x1");
+    assert(numel(constants)==6, "constants must be 6x1");
+
+    AA(:,:,i) = A_fun(xk, uk, constants);
+    BB(:,:,i) = B_fun(xk, uk, constants);
+end
+
+
 % ----------------------
 
 
@@ -67,7 +93,7 @@ posError=-results.error(:,:);
 
 % frame timesteps and number of frames from simulink model
 times=results.tout';
-frames = numel(times);
+frames = numel(state(:,1));
 
 
 %divide state data for ease of access
@@ -137,7 +163,7 @@ open(writerObj);
 %% --- Loop ---
 viewBox = [-5 5 -5 5 -5 5];   % constant camera box
 
-for k = 1:frames-1
+for k = 1:10:frames-1
 
     % Update vectors
     rocketVec.XData = rocketPos(k,1); rocketVec.YData = rocketPos(k,2); rocketVec.ZData = rocketPos(k,3);
