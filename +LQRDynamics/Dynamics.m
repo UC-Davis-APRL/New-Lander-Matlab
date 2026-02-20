@@ -1,4 +1,4 @@
-function xdot = dynamics(x, u)
+function xdot = Dynamics(x, u)
 % State: [pn pe pd vn ve vd Phi Theta Psi p q r]'
 arguments
     x (12,1) double %state

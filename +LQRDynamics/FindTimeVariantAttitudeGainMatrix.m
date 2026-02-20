@@ -12,7 +12,7 @@ arguments
     R (3,3) double = diag([1,1,1])
 end
 
-lin = MakeAttitudeLinearizer();
+lin = LQRDynamics.MakeAttitudeLinearizer();
 
 N = size(XA,2);
 K = zeros(3,6,N-1);

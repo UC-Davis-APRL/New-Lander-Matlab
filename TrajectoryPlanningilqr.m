@@ -1,4 +1,5 @@
 function ilqr_track_refTraj()
+
 %% iLQR that tracks a precomputed reference trajectory stored in refTraj.mat
 % Uses augmented state xa = [x; u_prev], decision variable du = Delta u.
 % State x = [pn pe pd u v w Phi Theta Psi p q r]' (12x1)
@@ -176,14 +177,6 @@ DU = zeros(nu, N-1);  % keeping u near uHover at first
 [XA, cost] = rollout_ref_aug(xa0, DU, dt, constants, uMin, uMax, xRef, Qk, Rdu, Qf);
 fprintf("Initial cost: %.6g\n", cost);
 
-%% ---------------------- Plot each iteration altitude ----------------------
-figure(100); clf; hold on; grid on;
-xlabel('Time [s]'); ylabel('Altitude [m]');
-title('Altitude per iLQR iteration (tracking ref)');
-plot(t, -xRef(3,:), 'k--', 'LineWidth', 2); % reference
-plot(t, -XA(3,:), 'LineWidth', 1.2);
-drawnow;
-
 lambda = opts.lambdaInit;
 costPrev = cost;
 
@@ -224,11 +217,6 @@ for iter = 1:opts.maxIter
 
         fprintf("Iter %2d | cost %.6g | dCost %.3g | alpha %.3g | lambda %.3g | expDec %.3g\n", ...
             iter, cost, dCost, bestAlpha, lambda, expectedDecrease);
-
-        % Plot altitude this iteration
-        c = iter / opts.maxIter;
-        plot(t, -XA(3,:), 'Color', [c 0 1-c], 'LineWidth', 1.0);
-        drawnow;
 
         if abs(dCost) < opts.tolCost
             fprintf("Converged: small cost improvement.\n");
@@ -514,10 +502,10 @@ nx = 12; nu = 4;
 x = xa(1:nx);
 u_prev = xa(nx+1:nx+nu);
 u = u_prev + du;
-k1 = dynamics(x, u);
-k2 = dynamics(x + 0.5*dt*k1, u);
-k3 = dynamics(x + 0.5*dt*k2, u);
-k4 = dynamics(x + dt*k3,     u);
+k1 = LQRDynamics.Dynamics(x, u);
+k2 = LQRDynamics.Dynamics(x + 0.5*dt*k1, u);
+k3 = LQRDynamics.Dynamics(x + 0.5*dt*k2, u);
+k4 = LQRDynamics.Dynamics(x + dt*k3,     u);
 
 x_next = x + (dt/6)*(k1 + 2*k2 + 2*k3 + k4);
 xa_next = [x_next; u];   % u_prev_next = u

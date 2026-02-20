@@ -1,7 +1,20 @@
+import SensorFusion.*
+import LQRDynamics.*
 %This is the cascade control script,
 %according to some papers and a sizeable amount of chatgpt cascade control
 %is better as it m
 clear; clc; close all;
+
+% ---------------- %
+%% Output Options %%
+% ---------------- %
+
+render = false
+playSpeed = 5;
+
+% -------------------- %
+%% simulation options %%
+% -------------------- %
 
 % Rocket parameters and gravity
 constants = [227,9.81,1,184,184,28];
@@ -22,21 +35,21 @@ Rp  = diag([80,80,80]);
 %alias for common constants
 m=constants(1); g=constants(2);
 
-%purely graphical options, render shows video and playspeed affects how
-%sped up it is, to an extent. turn render off for fast graph results.
-render = false
-playSpeed = 5;
+% ------------------- %
+%% actual simulation %%
+% ------------------- % 
 
-%magical LQR matrix finding function
-Kp=FindPositionGainMatrix([0,0,0,0,0,0],[0,0,0],constants,Qp,Rp);
-
+%trajectory import
 load("ilqr_solution.mat","U","XA","t","dt","pRef_ned","vRef_ned","aRef_ned","vRef_body","aRef_body");
+
+%LQR matrix finding functions
+Kp=FindPositionGainMatrix([0,0,0,0,0,0],[0,0,0],constants,Qp,Rp);
 
 KaMatrix = -FindTimeVariantAttitudeGainMatrix(XA,U,constants,Qa,Ra);
 
 Ka = matrixtimesToSimulinkStruct(KaMatrix,t(1:end-1));
 
-% --- sim parameters ---
+% --- sim aliase ---
 ref.pos = vectortimesToSimulinkStruct(XA(1:3,:), t);
 ref.vel = vectortimesToSimulinkStruct(XA(4:6,:), t);
 ref.acl = vectortimesToSimulinkStruct(aRef_ned, t);
@@ -45,10 +58,14 @@ ref.rat = vectortimesToSimulinkStruct(XA(10:12,:), t);
 
 
 uff = vectortimesToSimulinkStruct(U,t(1:end-1));
-%initialCondition = XA(:,1);
-initialCondition = [0,0,0,0,0,0,0,0,0,0,0,0]';
+initialCondition = XA(:,1); % use this one most of the time
+% initialCondition = [0,0,0,0,0,0,0,0,0,0,0,0]'; % use this if you want to
+% start with some state error from the trajectory
 
-% ------------------------------
+% --------------------------------- %
+%% sensor fusion matrix generation %%
+% --------------------------------- %
+
 N = numel(t);
 AA = zeros(12,12,N);
 BB = zeros(12,4,N);
@@ -56,11 +73,9 @@ BB = zeros(12,4,N);
 [A_fun, B_fun, ~] = makeDynamicsLinearizer();
 
 for i = 1:N-1
-    % Make sure you're pulling columns (12x1 and 4x1)
     xk = XA(:,i);
     uk = U(:,i);
 
-    % Force column vectors + sanity checks
     xk = xk(:);  uk = uk(:);  constants = constants(:);
     assert(numel(xk)==12, "xk must be 12x1");
     assert(numel(uk)==4,  "uk must be 4x1");
@@ -71,8 +86,9 @@ for i = 1:N-1
 end
 
 
-% ----------------------
-
+% -----------%
+%% simulate %%
+% ---------- % 
 
 % Run simulink model, comment out if you want to view an already
 % simulated models visualization faster, simulink is often slow
@@ -80,7 +96,7 @@ mdl = "TVCmodel.slx";
 
 results=sim(mdl);
 
-% retrieve data from simulink model
+% retrieve data from simulink model and format for rendering
 
 %(Nx12) array
 state=results.state(:,:);
@@ -128,7 +144,11 @@ thrustDir = (thrusts/(m*g)) .* RotateEulerAnglesYPR(-rocketDir,alphaAngles,betaA
 
 
 if render
-%% --- Fixed-size figure + axes (do this once) ---
+
+% ----------------- %
+%% Animated figure %%
+% ----------------- %
+
 fig = figure(1);
 clf(fig);
 
@@ -196,6 +216,10 @@ end
 close(writerObj);
 end
 
+% ------------------ %
+%% Graphs and Plots %%
+% ------------------ %
+
 
 figure; plot(t, -XA(3,:), 'b--', 'LineWidth',2); hold on; grid on;
 plot(times, -rocketPos(:,3), 'LineWidth',2);
@@ -212,7 +236,9 @@ plot(times, rocketPos(:,2), 'LineWidth',2);
 xlabel('t'); ylabel('Pe [m]'); title('East Pos: reference vs achieved');
 legend('planned','simulated');
 
-
+% -------------------------------- %
+%% local functions, no code below %%
+% -------------------------------- %
 
 function sig = matrixtimesToSimulinkStruct(M, t)
 % Converts an A x B x T matrix into a Simulink time struct
