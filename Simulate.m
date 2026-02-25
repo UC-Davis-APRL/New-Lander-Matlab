@@ -70,7 +70,7 @@ N = numel(t);
 AA = zeros(12,12,N);
 BB = zeros(12,4,N);
 
-[A_fun, B_fun, ~] = makeDynamicsLinearizer();
+[A_fun, B_fun, ~] = MakeDynamicsLinearizer();
 
 for i = 1:N-1
     xk = XA(:,i);
