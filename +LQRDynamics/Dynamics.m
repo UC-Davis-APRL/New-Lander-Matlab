@@ -1,17 +1,17 @@
 function xdot = Dynamics(x, u)
 % State: [pn pe pd vn ve vd Phi Theta Psi p q r]'
 arguments
-    x (12,1) double %state
+    x (13,1) double %state
     u (4,1) double %T Alph bet rcs
     
 end
-constants = [227,9.81,1,184,184,28];
+constants = [2000 9.81,1,184,184,28];
 T=u(1); Alph = u(2); Bet = u(3); Rcs = u(4);
-xdot = zeros(12,1);
+xdot = zeros(13,1);
 
 % constants
 c = num2cell(constants);
-[m,g,L,Ixx,Iyy,Izz] = deal(c{:});
+[Ve,g,L,Ixx,Iyy,Izz] = deal(c{:});
 
 % unpack state
 pn    = x(1);
@@ -26,6 +26,8 @@ Psi   = x(9);
 p     = x(10);
 q     = x(11);
 r     = x(12);
+%277kg
+m     = x(13);
 
 %% 1) Kinematics in NED
 xdot(1) = vn;
@@ -67,4 +69,5 @@ xdot(10) = (Iyy - Izz)*q*r/Ixx + (L*T*sin(Alph)*cos(Bet))/Ixx;
 xdot(11) = (Izz - Ixx)*p*r/Iyy - (L*T*sin(Bet)*cos(Alph))/Iyy;
 xdot(12) = (Ixx - Iyy)*p*q/Izz + Rcs/Izz;
 
+xdot(13) = - T/Ve;
 end

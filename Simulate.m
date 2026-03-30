@@ -17,9 +17,9 @@ playSpeed = 5;
 % -------------------- %
 
 % Rocket parameters and gravity
-constants = [227,9.81,1,184,184,28];
-% [m g L Ixx Iyy Izz]
-
+constants = [1000,9.81,1,184,184,28];
+% [Ve g L Ixx Iyy Izz]
+m=227
 %weights
 
 %increase to penalize error
@@ -33,7 +33,7 @@ Qp = diag([5,5,5,0.5,0.5,0.8]);
 Rp  = diag([80,80,80]);
 
 %alias for common constants
-m=constants(1); g=constants(2);
+g=constants(2);
 
 % ------------------- %
 %% actual simulation %%
@@ -58,7 +58,7 @@ ref.rat = vectortimesToSimulinkStruct(XA(10:12,:), t);
 
 
 uff = vectortimesToSimulinkStruct(U,t(1:end-1));
-initialCondition = XA(:,1); % use this one most of the time
+initialCondition = [XA(:,1); m]; % use this one most of the time
 % initialCondition = [0,0,0,0,0,0,0,0,0,0,0,0]'; % use this if you want to
 % start with some state error from the trajectory
 
@@ -66,26 +66,16 @@ initialCondition = XA(:,1); % use this one most of the time
 %% sensor fusion matrix generation %%
 % --------------------------------- %
 
-N = numel(t);
-AA = zeros(12,12,N);
-BB = zeros(12,4,N);
-
-[A_fun, B_fun, ~] = MakeDynamicsLinearizer();
-
-for i = 1:N-1
-    xk = XA(:,i);
-    uk = U(:,i);
-
-    xk = xk(:);  uk = uk(:);  constants = constants(:);
-    assert(numel(xk)==12, "xk must be 12x1");
-    assert(numel(uk)==4,  "uk must be 4x1");
-    assert(numel(constants)==6, "constants must be 6x1");
-
-    AA(:,:,i) = A_fun(xk, uk, constants);
-    BB(:,:,i) = B_fun(xk, uk, constants);
-end
+IMUinertialCV = diag([0.0016,0.0016,0.0169])
 
 
+ProcessNoiseCovariance = [ 1e-10, 1e-10, 1e-10, ...
+                                1e-10,   1e-10,   1e-10, ...
+                                1e-10, 1e-10, 1e-10, ...
+                                1e-10, 1e-10, 1e-10 ...
+                                1e-10 ...
+                                ]
+ProcessNoiseCovarianceMatrix = diag(ProcessNoiseCovariance)
 % -----------%
 %% simulate %%
 % ---------- % 
@@ -98,7 +88,7 @@ results=sim(mdl);
 
 % retrieve data from simulink model and format for rendering
 
-%(Nx12) array
+%(Nx13) array
 state=results.state(:,:);
 
 %(Nx4) array
