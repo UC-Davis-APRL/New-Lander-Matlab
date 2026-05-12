@@ -9,7 +9,7 @@ clear; clc; close all;
 %% Output Options %%
 % ---------------- %
 
-render = false
+render = true
 playSpeed = 5;
 
 % -------------------- %
